@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Personal Task Tracker</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #000000; margin: 0; padding: 190px; }
+        .container { max-width: 500px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; }
+        h2 { text-align: center; }
+        form { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        input, select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 8px 12px; border: none; border-radius: 4px; background: #007bff; color: #fff; cursor: pointer; }
+        button:disabled { background: #aaa; }
+        ul { list-style: none; padding: 0; }
+        li { background: #f9f9f9; margin-bottom: 10px; padding: 10px; border-radius: 4px; display: flex; align-items: center; justify-content: space-between; }
+        .completed { text-decoration: line-through; color: #888; }
+        .task-info { flex: 1; }
+        .actions button { margin-left: 5px; background: #28a745; }
+        .actions .delete { background: #dc3545; }
+        .actions .edit { background: #ffc107; color: #333; }
+        
+        /* Sign-in styles */
+        #signin-container { max-width: 350px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; margin-top: 60px; }
+        #signin-container h2 { text-align: center; }
+        #signin-form { display: flex; flex-direction: column; gap: 12px; }
+        #signin-form input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        #signin-form button { background: #007bff; color: #fff; }
+        #signin-error { color: #dc3545; text-align: center; margin-top: 10px; }
+    </style>
+    <script>
+        // Simple sign-in logic (demo only, not secure)
+        function showSignIn() {
+            document.body.innerHTML = `
+                <div id="signin-container">
+                    <h2>Sign In</h2>
+                    <form id="signin-form">
+                        <input type="text" id="username" placeholder="Username" required>
+                        <input type="password" id="password" placeholder="Password" required>
+                        <button type="submit">Sign In</button>
+                    </form>
+                    <div id="signin-error"></div>
+                </div>
+            `;
+            document.getElementById('signin-form').onsubmit = function(e) {
+                e.preventDefault();
+                const username = document.getElementById('username').value.trim();
+                const password = document.getElementById('password').value;
+                // Removed sign-in logic
+                if (username && password) {
+                    // Get user's IP address using an external API
+                    // For GitHub Pages, skip IP fetch and just save username
+                    localStorage.setItem('signedInUser', username);
+                    location.reload();
+                } else {
+                    document.getElementById('signin-error').textContent = 'Invalid username or password.';
+                }
+            };
+        }
+        if (!localStorage.getItem('signedInUser')) {
+            window.onload = showSignIn;
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h2>Personal Task Tracker</h2>
+        <form id="taskForm">
+            <input type="text" id="taskInput" placeholder="Task description" required>
+            <input type="date" id="dueDate">
+            <select id="priority">
+                <option value="Low">Low</option>
+                <option value="Normal" selected>Normal</option>
+                <option value="High">High</option>
+            </select>
+            <button type="submit">Add Task</button>
+        </form>
+        <ul id="taskList"></ul>
+    </div>
+    <script>
+        const taskForm = document.getElementById('taskForm');
+        const taskInput = document.getElementById('taskInput');
+        const dueDateInput = document.getElementById('dueDate');
+        const priorityInput = document.getElementById('priority');
+        const taskList = document.getElementById('taskList');
+
+        let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+        let editIndex = null;
+
+        function saveTasks() {
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+        }
+
+        function renderTasks() {
+            taskList.innerHTML = '';
+            tasks.forEach((task, idx) => {
+                const li = document.createElement('li');
+                li.className = task.completed ? 'completed' : '';
+                const info = document.createElement('span');
+                info.className = 'task-info';
+                info.innerHTML = `
+                    <strong>${task.text}</strong>
+                    ${task.dueDate ? ` | Due: ${task.dueDate}` : ''}
+                    | Priority: ${task.priority}
+                `;
+                li.appendChild(info);
+
+                const actions = document.createElement('span');
+                actions.className = 'actions';
+
+                const completeBtn = document.createElement('button');
+                completeBtn.textContent = task.completed ? 'Undo' : 'Complete';
+                completeBtn.onclick = () => {
+                    tasks[idx].completed = !tasks[idx].completed;
+                    saveTasks();
+                    renderTasks();
+                };
+                actions.appendChild(completeBtn);
+
+                const editBtn = document.createElement('button');
+                editBtn.textContent = 'Edit';
+                editBtn.className = 'edit';
+                editBtn.onclick = () => {
+                    taskInput.value = task.text;
+                    dueDateInput.value = task.dueDate || '';
+                    priorityInput.value = task.priority;
+                    editIndex = idx;
+                    taskForm.querySelector('button[type="submit"]').textContent = 'Update Task';
+                };
+                actions.appendChild(editBtn);
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = 'Delete';
+                deleteBtn.className = 'delete';
+                deleteBtn.onclick = () => {
+                    tasks.splice(idx, 1);
+                    saveTasks();
+                    renderTasks();
+                };
+                actions.appendChild(deleteBtn);
+
+                li.appendChild(actions);
+                taskList.appendChild(li);
+            });
+        }
+
+        taskForm.onsubmit = function(e) {
+            e.preventDefault();
+            const text = taskInput.value.trim();
+            const dueDate = dueDateInput.value;
+            const priority = priorityInput.value;
+            if (!text) return;
+
+            if (editIndex !== null) {
+                tasks[editIndex] = { ...tasks[editIndex], text, dueDate, priority };
+                editIndex = null;
+                taskForm.querySelector('button[type="submit"]').textContent = 'Add Task';
+            } else {
+                tasks.push({ text, dueDate, priority, completed: false });
+            }
+            saveTasks();
+            renderTasks();
+            taskForm.reset();
+        };
+
+        renderTasks();
+    </script>
+</body>
+</html>
